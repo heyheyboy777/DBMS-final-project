@@ -1,0 +1,10 @@
+<h2>收藏品追蹤系統 - 使用者登入</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">登入</button>
+</form>
+
+<hr>
+<p>還沒有帳號嗎？請聯繫管理員建立 (或使用 createsuperuser)。</p>
