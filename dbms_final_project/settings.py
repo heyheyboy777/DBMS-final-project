@@ -122,3 +122,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 登入成功後跳轉的網址 (例如回到首頁 '/')
+LOGIN_REDIRECT_URL = '/' 
+
+# 登出後跳轉的網址
+LOGOUT_REDIRECT_URL = '/accounts/login/'
