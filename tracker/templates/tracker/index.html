@@ -9,5 +9,18 @@
     <h1>收藏品管理系統</h1>
     <p>
         模板！</p>
+        <nav>
+        {% if user.is_authenticated %}
+            <p>你好，<strong>{{ user.username }}</strong>！</p>
+            <a href="{% url 'logout' %}">
+                <button type="button">登出系統</button>
+            </a>
+        {% else %}
+            <p>您尚未登入，請先登入以查看您的收藏。</p>
+            <a href="{% url 'login' %}">
+                <button type="button">前往登入</button>
+            </a>
+        {% endif %}
+    </nav>
 </body>
 </html>
