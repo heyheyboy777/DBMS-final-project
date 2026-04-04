@@ -15,6 +15,33 @@
             <a href="{% url 'logout' %}">
                 <button type="button">登出系統</button>
             </a>
+            <h3>您的收藏清單</h3>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>圖片</th>
+                <th>名稱</th>
+                <th>購入價格</th>
+                <th>目前市價</th>
+                <th>購入日期</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in inventory %}
+            <tr>
+                <td><img src="{{ item.image }}" width="50"></td>
+                <td>{{ item.name }}</td>
+                <td>${{ item.buy_price }}</td>
+                <td style="color: green;">${{ item.now_price }}</td>
+                <td>{{ item.buy_date }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">目前清單是空的，快去 <a href="{% url 'search_product' %}">搜尋並新增</a> 吧！</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
         {% else %}
             <p>您尚未登入，請先登入以查看您的收藏。</p>
             <a href="{% url 'login' %}">

@@ -9,8 +9,11 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv() # 這行會自動去讀取專案根目錄的 .env 檔案
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -128,3 +131,5 @@ LOGIN_REDIRECT_URL = '/'
 
 # 登出後跳轉的網址
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+EBAY_CLIENT_ID = os.getenv('EBAY_CLIENT_ID')
+EBAY_CLIENT_SECRET = os.getenv('EBAY_CLIENT_SECRET')
