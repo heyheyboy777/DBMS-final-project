@@ -14,14 +14,9 @@
             <p><strong>{{ item.name }}</strong></p>
             <p>價格：{{ item.price }} {{ item.currency }}</p>
             
-            <form method="POST" action="{% url 'add_to_inventory' %}">
-                {% csrf_token %}
-                <input type="hidden" name="external_id" value="{{ item.external_id }}">
-                <input type="hidden" name="name" value="{{ item.name }}">
-                <input type="hidden" name="price" value="{{ item.price }}">
-                <input type="hidden" name="image_url" value="{{ item.image_url }}">
-                <button type="submit">加入我的清單</button>
-            </form>
+            <a href="{% url 'add_to_inventory' %}?external_id={{ item.external_id }}&name={{ item.name }}&price={{ item.price }}&image_url={{ item.image_url }}">
+                <button type="button">加入我的清單</button>
+            </a>
         </div>
     {% endfor %}
     </div>

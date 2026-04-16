@@ -1,7 +1,6 @@
 from django.contrib import admin
-from .models import Product, UserInventory, PriceHistory
+from .models import Collectible, UserCollection, Market_Price
 
-admin.site.register(Product)
-admin.site.register(UserInventory)
-admin.site.register(PriceHistory)
-# Register your models here.
+admin.site.register(Collectible)
+admin.site.register(UserCollection)
+admin.site.register(Market_Price)

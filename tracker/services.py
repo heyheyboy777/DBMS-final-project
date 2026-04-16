@@ -38,7 +38,7 @@ def search_ebay_items(keyword):
     }
     params = {
         "q": keyword,
-        "limit": 5  # 先抓 5 筆給使用者挑選
+        "limit": 10  # 先抓 10 筆給使用者挑選
     }
 
     response = requests.get(search_url, headers=headers, params=params)
