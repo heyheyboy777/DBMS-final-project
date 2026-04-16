@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>確認加入收藏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .confirm-card {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .product-image {
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .submit-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .cancel-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+        .cancel-btn:hover {
+            background-color: #da190b;
+        }
+    </style>
+</head>
+<body>
+    <div class="confirm-card">
+        <h2>確認加入收藏</h2>
+        
+        {% if image_url %}
+            <img src="{{ image_url }}" alt="{{ name }}" class="product-image">
+        {% endif %}
+        
+        <p><strong>商品名稱：</strong> {{ name }}</p>
+        <p><strong>eBay 列表價格：</strong> ${{ price }}</p>
+
+        <form method="POST" action="{% url 'add_to_inventory' %}">
+            {% csrf_token %}
+            
+            <!-- 隱藏欄位保存商品資訊 -->
+            <input type="hidden" name="external_id" value="{{ external_id }}">
+            <input type="hidden" name="name" value="{{ name }}">
+            <input type="hidden" name="price" value="{{ price }}">
+            <input type="hidden" name="image_url" value="{{ image_url }}">
+            
+            <div class="form-group">
+                <label for="quantity">數量 Quantity:</label>
+                <input type="number" id="quantity" name="quantity" value="1" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="purchase_price">購入價格 Purchase Price ($):</label>
+                <input type="number" id="purchase_price" name="purchase_price" value="{{ price }}" step="0.01" min="0" required>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="submit-btn">確認加入</button>
+                <button type="button" class="cancel-btn" onclick="history.back()">取消</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
