@@ -26,6 +26,7 @@ class UserCollection(models.Model):
 class Market_Price(models.Model):
     product = models.ForeignKey(Collectible, on_delete=models.CASCADE)
     market_price = models.DecimalField(max_digits=10, decimal_places=2)
+    platform = models.CharField(max_length=50, blank=True, null=True)
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
