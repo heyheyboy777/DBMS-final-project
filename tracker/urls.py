@@ -7,4 +7,6 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('search/', views.search_product, name='search_product'),
     path('add/', views.add_to_inventory, name='add_to_inventory'),
+    path('profile/', views.profile, name='profile'),
+    path('update-prices/', views.update_prices, name='update_prices'),
 ]

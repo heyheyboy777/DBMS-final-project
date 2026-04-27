@@ -1,7 +1,11 @@
 <h2>搜尋收藏品</h2>
 <form method="GET" action="{% url 'search_product' %}">
-    <input type="text" name="q" value="{{ query }}" placeholder="例如：Pokemon Card PSA 10">
-    <button type="submit">eBay 搜尋</button>
+    <input type="text" name="q" value="{{ query|default_if_none:'' }}" placeholder="例如：Pokemon Card PSA 10">
+    <label style="margin: 0 10px;">
+        <input type="checkbox" name="search_ptcg" value="1" {% if search_ptcg %}checked{% endif %}>
+        同時搜尋寶可夢卡牌 (PTCG API)
+    </label>
+    <button type="submit">搜尋</button>
 </form>
 
 <hr>
@@ -13,8 +17,9 @@
             <img src="{{ item.image_url }}" style="width: 100%;">
             <p><strong>{{ item.name }}</strong></p>
             <p>價格：{{ item.price }} {{ item.currency }}</p>
+            <p style="font-size: 0.8em; color: #666;">來源：{{ item.platform|default:"未知" }}</p>
             
-            <a href="{% url 'add_to_inventory' %}?external_id={{ item.external_id }}&name={{ item.name }}&price={{ item.price }}&image_url={{ item.image_url }}">
+            <a href="{% url 'add_to_inventory' %}?external_id={{ item.external_id }}&name={{ item.name }}&price={{ item.price }}&image_url={{ item.image_url }}&platform={{ item.platform }}">
                 <button type="button">加入我的清單</button>
             </a>
         </div>
