@@ -21,9 +21,10 @@
             <tr>
                 <th>圖片</th>
                 <th>名稱</th>
-                <th>購入價格</th>
+                <th>數量</th>
+                <th>平均購入價格</th>
                 <th>目前市價</th>
-                <th>購入日期</th>
+                <th>最後購入日期</th>
             </tr>
         </thead>
         <tbody>
@@ -31,13 +32,14 @@
             <tr>
                 <td><img src="{{ item.image }}" width="300"></td>
                 <td>{{ item.name }}</td>
+                <td>{{ item.quantity }}</td>
                 <td>${{ item.buy_price }}</td>
                 <td style="color: green;">${{ item.now_price }}</td>
                 <td>{{ item.buy_date }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5">目前清單是空的，快去 <a href="{% url 'search_product' %}">搜尋並新增</a> 吧！</td>
+                <td colspan="6">目前清單是空的，快去 <a href="{% url 'search_product' %}">搜尋並新增</a> 吧！</td>
                 </tr>
             {% endfor %}
             </tbody>

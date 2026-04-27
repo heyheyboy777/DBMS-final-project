@@ -10,15 +10,19 @@ def index(request):
     
     if request.user.is_authenticated:
         with connection.cursor() as cursor:
-            # 1. 去資料庫撈屬於這個使用者的收藏，包含圖片和最新行情
+            # 1. 去資料庫撈屬於這個使用者的收藏，包含圖片和最新行情，並將相同的商品合併顯示數量
             sql = """
-                SELECT p.name, p.imgurl, ui.purchase_price, ui.purchase_date,
+                SELECT p.name, p.imgurl, 
+                       AVG(ui.purchase_price) AS avg_purchase_price, 
+                       MAX(ui.purchase_date) AS latest_purchase_date,
                        COALESCE((SELECT market_price FROM price_histories 
                                 WHERE product_id = p.id 
-                                ORDER BY recorded_at DESC LIMIT 1), ui.purchase_price) AS market_price
+                                ORDER BY recorded_at DESC LIMIT 1), AVG(ui.purchase_price)) AS market_price,
+                       SUM(ui.quantity) AS total_quantity
                 FROM user_inventories ui
                 JOIN products p ON ui.product_id = p.id
                 WHERE ui.user_id = %s
+                GROUP BY p.id, p.name, p.imgurl
             """
             cursor.execute(sql, [request.user.id])
             rows = cursor.fetchall()
@@ -28,9 +32,10 @@ def index(request):
                 inventory_list.append({
                     'name': row[0],
                     'image': row[1],
-                    'buy_price': row[2],
-                    'buy_date': row[3],
+                    'buy_price': round(row[2], 2) if row[2] else 0, # 取平均購入價格
+                    'buy_date': row[3], # 最後一次購買日期
                     'now_price': row[4],
+                    'quantity': row[5], # 總數量
                 })
     
     # 3. 關鍵在這：要把 inventory_list 塞進最後一個參數 (把菜放到桌上)
