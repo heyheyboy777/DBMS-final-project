@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>市場行情 - 收藏品管理系統</title>
+    <!-- 導入 Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 導入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark mb-4">
+    <div class="container">
+        <span class="navbar-brand mb-0 h1">收藏品管理系統 - 市場行情</span>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row g-4">
+        <!-- 左側圖表 -->
+        <div class="col-lg-8">
+            <div class="card p-4">
+                <h5 class="card-title mb-4">價格趨勢圖</h5>
+                <canvas id="marketChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+        <!-- 右側即時數據 -->
+        <div class="col-lg-4">
+            <div class="card p-4 mb-3">
+                <h6 class="text-muted">當前市場平均價</h6>
+                <h2 class="text-primary fw-bold">$120.50</h2>
+                <small class="text-success">▲ 較昨日上升 2.5%</small>
+            </div>
+            <div class="card p-4">
+                <h6>API </h6>
+                <p class="small text-secondary">最後更新時間：2026-05-07 02:30</p>
+                <button class="btn btn-outline-primary btn-sm w-100">立即刷新數據</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ctx = document.getElementById('marketChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.5)');
+    gradient.addColorStop(1, 'rgba(118, 75, 162, 0)');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['週一', '週二', '週三', '週四', '週五', '週六', '週日'],
+            datasets: [{
+                label: '價格 ($)',
+                data: [105, 110, 108, 125, 120, 130, 120.5],
+                borderColor: '#667eea',
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.4
+            }]
+        }
+    });
+</script>
+</body>
+</html>
