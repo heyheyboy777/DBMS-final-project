@@ -1,6 +1,6 @@
 {% extends 'tracker/base.html' %}
 
-{% block page_title %}Confirm Addition{% endblock %}
+{% block page_title %}Edit Collectible{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -77,17 +77,24 @@
         border: 1px solid var(--border-color);
         cursor: pointer;
         transition: background 0.2s;
-        flex: 1;
         text-align: center;
     }
     .btn-secondary:hover {
         background-color: #f3f4f6;
     }
-    .btn-submit {
-        flex: 1;
-        text-align: center;
+    .btn-danger {
+        background-color: #ef4444;
+        color: white;
         border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-weight: 600;
         font-size: 14px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .btn-danger:hover {
+        opacity: 0.9;
     }
 </style>
 {% endblock %}
@@ -106,34 +113,29 @@
                 <h3>{{ name }}</h3>
                 <p>Platform: <strong>{{ platform }}</strong></p>
                 <p>Category: <strong>{{ category }}</strong></p>
-                <p style="margin-top: 8px; color: #059669; font-weight: 600;">Current Price: ${{ price }}</p>
             </div>
         </div>
 
-        <form method="POST" action="{% url 'add_to_inventory' %}">
+        <form method="POST" action="{% url 'edit_inventory' product_id %}">
             {% csrf_token %}
-            
-            <!-- Hidden Fields -->
-            <input type="hidden" name="external_id" value="{{ external_id }}">
-            <input type="hidden" name="name" value="{{ name }}">
-            <input type="hidden" name="price" value="{{ price }}">
-            <input type="hidden" name="image_url" value="{{ image_url }}">
-            <input type="hidden" name="platform" value="{{ platform }}">
-            <input type="hidden" name="category" value="{{ category }}">
             
             <div class="form-group">
                 <label for="quantity">Quantity</label>
-                <input type="number" id="quantity" name="quantity" value="1" min="1" required>
+                <input type="number" id="quantity" name="quantity" value="{{ quantity }}" min="1" required>
             </div>
 
             <div class="form-group">
-                <label for="purchase_price">Your Purchase Price ($)</label>
-                <input type="number" id="purchase_price" name="purchase_price" value="{{ price }}" step="0.01" min="0" required>
+                <label for="purchase_price">Average Purchase Price ($)</label>
+                <input type="number" id="purchase_price" name="purchase_price" value="{{ purchase_price }}" step="0.01" min="0" required>
             </div>
 
-            <div class="button-group">
-                <button type="button" class="btn-secondary" onclick="history.back()">Cancel</button>
-                <button type="submit" class="btn-primary btn-submit">Add to Inventory</button>
+            <div class="button-group" style="justify-content: space-between;">
+                <button type="submit" name="action" value="delete" class="btn-danger" onclick="return confirm('確定要從收藏清單中刪除此商品嗎？');">Delete Item</button>
+                
+                <div style="display: flex; gap: 16px;">
+                    <a href="{% url 'index' %}" class="btn-secondary">Cancel</a>
+                    <button type="submit" name="action" value="save" class="btn-primary">Save Changes</button>
+                </div>
             </div>
         </form>
     </div>

@@ -49,13 +49,20 @@ def search_ebay_items(keyword):
     # 整理成我們資料庫好讀的格式
     results = []
     for item in data.get('itemSummaries', []):
+        category_name = 'Other'
+        categories = item.get('categories', [])
+        if categories:
+            # 優先拿取 eBay 回傳的第一個分類名稱
+            category_name = categories[0].get('categoryName', 'Other')
+            
         results.append({
             'external_id': item.get('itemId'),
             'name': item.get('title'),
             'price': item.get('price', {}).get('value'),
             'currency': item.get('price', {}).get('currency'),
             'image_url': item.get('thumbnailImages', [{}])[0].get('imageUrl'),
-            'platform': 'eBay'
+            'platform': 'eBay',
+            'category': category_name
         })
     return results
 
@@ -117,7 +124,8 @@ def search_ptcg_cards(keyword):
                 'price': price,
                 'currency': currency,
                 'image_url': card.get('images', {}).get('small'),
-                'platform': 'PTCG API'
+                'platform': 'PTCG API',
+                'category': 'Pokémon Cards'
             })
         return results
     except Exception as e:
