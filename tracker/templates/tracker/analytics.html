@@ -1,0 +1,1010 @@
+{% extends 'tracker/base.html' %}
+
+{% block page_title %}Analytics & Trends{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* ═══════════════════════════════════════════
+       PROFESSIONAL TRADING DASHBOARD
+       White background + Dark chart panels
+       ═══════════════════════════════════════════ */
+
+    .page-title {
+        font-family: 'JetBrains Mono', 'Inter', monospace;
+        letter-spacing: 1px;
+        font-size: 22px !important;
+        text-transform: uppercase;
+        position: relative;
+        padding-left: 16px;
+    }
+
+    .page-title::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(180deg, var(--sidebar-bg), #64748b);
+        border-radius: 3px;
+    }
+
+    /* ── Metric Cards ── */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .metric-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .metric-card:hover {
+        border-color: #cbd5e1;
+    }
+
+    .metric-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+    }
+
+    .metric-card.highlight::after {
+        background: linear-gradient(90deg, transparent, var(--up-color), transparent);
+    }
+
+    .metric-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .metric-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.2;
+    }
+
+    .metric-value.positive {
+        color: var(--up-color);
+    }
+
+    .metric-value.negative {
+        color: var(--down-color);
+    }
+
+    .metric-sub {
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 6px;
+    }
+
+    /* ── Summary Bar ── */
+    .summary-bar {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .summary-item {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        padding: 24px;
+        text-align: center;
+    }
+
+    .summary-item .label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .summary-item .value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 28px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .summary-item .value.positive {
+        color: var(--up-color);
+    }
+
+    .summary-item .value.negative {
+        color: var(--down-color);
+    }
+
+    /* ── Chart Panels ── */
+    .chart-panel {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .chart-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .chart-panel-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .chart-panel-title .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .chart-panel-title .dot.green {
+        background: var(--up-color);
+        box-shadow: 0 0 4px var(--up-color);
+    }
+
+    .chart-panel-title .dot.red {
+        background: var(--down-color);
+        box-shadow: 0 0 4px var(--down-color);
+    }
+
+    .chart-panel-title .dot.blue {
+        background: #1e3a8a;
+        box-shadow: 0 0 4px #1e3a8a;
+    }
+
+    .chart-panel-title .dot.amber {
+        background: #7c2d12;
+        box-shadow: 0 0 4px #7c2d12;
+    }
+
+    .chart-panel-body {
+        padding: 16px 24px 24px;
+    }
+
+    .chart-wrapper {
+        width: 100%;
+        height: 320px;
+        position: relative;
+    }
+
+    .chart-wrapper.large {
+        height: 400px;
+    }
+
+    .chart-wrapper.small {
+        height: 260px;
+    }
+
+    /* ── Grid Layouts ── */
+    .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .grid-3 {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    /* ── Select ── */
+    .terminal-select {
+        padding: 6px 12px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        color: #1e293b;
+        outline: none;
+        cursor: pointer;
+        max-width: 280px;
+    }
+
+    .terminal-select:focus {
+        border-color: #089981;
+    }
+
+    .terminal-select option {
+        background: #ffffff;
+        color: #1e293b;
+    }
+
+    /* ── Legend ── */
+    .chart-legend-custom {
+        display: flex;
+        gap: 16px;
+        padding: 0 24px 16px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #64748b;
+    }
+
+    .legend-line {
+        width: 16px;
+        height: 2px;
+        border-radius: 1px;
+    }
+
+    /* ── Error State ── */
+    .terminal-error {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 0;
+        padding: 60px 40px;
+        text-align: center;
+    }
+
+    .terminal-error h3 {
+        color: #6b7280;
+    }
+
+    /* ── Animations ── */
+    @keyframes pulse-glow {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.7;
+        }
+    }
+
+    .live-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--up-color);
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse-glow 2s infinite;
+        box-shadow: 0 0 4px var(--up-color);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .metric-card {
+        animation: fadeInUp 0.5s ease backwards;
+    }
+
+    .metric-card:nth-child(1) {
+        animation-delay: 0.05s;
+    }
+
+    .metric-card:nth-child(2) {
+        animation-delay: 0.1s;
+    }
+
+    .metric-card:nth-child(3) {
+        animation-delay: 0.15s;
+    }
+
+    .metric-card:nth-child(4) {
+        animation-delay: 0.2s;
+    }
+
+    .metric-card:nth-child(5) {
+        animation-delay: 0.25s;
+    }
+
+    .metric-card:nth-child(6) {
+        animation-delay: 0.3s;
+    }
+
+    .metric-card:nth-child(7) {
+        animation-delay: 0.35s;
+    }
+
+    .metric-card:nth-child(8) {
+        animation-delay: 0.4s;
+    }
+
+    .chart-panel {
+        animation: fadeInUp 0.6s ease backwards;
+    }
+
+    .header-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: #64748b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="terminal-error">
+    <h3>{{ error }}</h3>
+    <a href="{% url 'search_product' %}" class="btn-primary" style="display: inline-block; margin-top: 16px;">Add Items
+        to Analyze</a>
+</div>
+{% else %}
+
+<!-- ═══ SECTION 1: PORTFOLIO SUMMARY BAR ═══ -->
+<div class="summary-bar">
+    <div class="summary-item">
+        <div class="label">Total Investment</div>
+        <div class="value">${{ metrics.total_cost }}</div>
+    </div>
+    <div class="summary-item">
+        <div class="label">Current Portfolio Value</div>
+        <div class="value">${{ metrics.current_value }}</div>
+    </div>
+    <div class="summary-item">
+        <div class="label">Total P&L</div>
+        <div class="value {% if metrics.total_profit >= 0 %}positive{% else %}negative{% endif %}">
+            {% if metrics.total_profit > 0 %}+{% endif %}${{ metrics.total_profit }}
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 2: PORTFOLIO METRICS GRID ═══ -->
+<div class="metrics-grid">
+    <div class="metric-card highlight">
+        <div class="metric-label">Total Return</div>
+        <div class="metric-value {% if metrics.total_return >= 0 %}positive{% else %}negative{% endif %}">
+            {% if metrics.total_return > 0 %}+{% endif %}{{ metrics.total_return }}%
+        </div>
+        <div class="metric-sub">Since inception</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Annualized Return</div>
+        <div class="metric-value {% if metrics.annualized_return >= 0 %}positive{% else %}negative{% endif %}">
+            {% if metrics.annualized_return > 0 %}+{% endif %}{{ metrics.annualized_return }}%
+        </div>
+        <div class="metric-sub">CAGR</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Sharpe Ratio</div>
+        <div
+            class="metric-value {% if metrics.sharpe_ratio >= 1 %}positive{% elif metrics.sharpe_ratio < 0 %}negative{% endif %}">
+            {{ metrics.sharpe_ratio }}
+        </div>
+        <div class="metric-sub">Risk-free rate: 2%</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Sortino Ratio</div>
+        <div
+            class="metric-value {% if metrics.sortino_ratio >= 1 %}positive{% elif metrics.sortino_ratio < 0 %}negative{% endif %}">
+            {{ metrics.sortino_ratio }}
+        </div>
+        <div class="metric-sub">Downside deviation only</div>
+    </div>
+
+    <div class="metric-card highlight">
+        <div class="metric-label">Max Drawdown</div>
+        <div class="metric-value negative">
+            {{ metrics.max_drawdown }}%
+        </div>
+        <div class="metric-sub">Peak to trough</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Annual Volatility</div>
+        <div class="metric-value">
+            {{ metrics.volatility }}%
+        </div>
+        <div class="metric-sub">σ × √252</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Win Rate</div>
+        <div class="metric-value {% if metrics.win_rate >= 50 %}positive{% else %}negative{% endif %}">
+            {{ metrics.win_rate }}%
+        </div>
+        <div class="metric-sub">Positive return days</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Calmar Ratio</div>
+        <div
+            class="metric-value {% if metrics.calmar_ratio >= 1 %}positive{% elif metrics.calmar_ratio < 0 %}negative{% endif %}">
+            {{ metrics.calmar_ratio }}
+        </div>
+        <div class="metric-sub">Return / Max DD</div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 3: PORTFOLIO NET WORTH (FULL WIDTH) ═══ -->
+<div class="chart-panel">
+    <div class="chart-panel-header">
+        <div class="chart-panel-title">
+            <span class="dot green"></span>
+            PORTFOLIO NET WORTH
+            <span class="live-dot" style="margin-left: 8px;"></span>
+        </div>
+        <div class="header-value">${{ metrics.current_value }} USD</div>
+    </div>
+    <div class="chart-legend-custom">
+        <div class="legend-item">
+            <div class="legend-line" style="background: #1e3a8a;"></div>Net Worth
+        </div>
+        <div class="legend-item">
+            <div class="legend-line" style="background: #475569;"></div>MA(7)
+        </div>
+        <div class="legend-item">
+            <div class="legend-line" style="background: #7c2d12;"></div>MA(30)
+        </div>
+    </div>
+    <div class="chart-panel-body">
+        <div class="chart-wrapper large">
+            <canvas id="portfolioChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 4: DRAWDOWN + DAILY RETURNS ═══ -->
+<div class="grid-2">
+    <div class="chart-panel">
+        <div class="chart-panel-header">
+            <div class="chart-panel-title">
+                <span class="dot red"></span>
+                DRAWDOWN CURVE
+            </div>
+            <div class="header-value" style="color: var(--down-color);">Max: {{ metrics.max_drawdown }}%</div>
+        </div>
+        <div class="chart-panel-body">
+            <div class="chart-wrapper"><canvas id="drawdownChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="chart-panel">
+        <div class="chart-panel-header">
+            <div class="chart-panel-title">
+                <span class="dot blue"></span>
+                DAILY RETURNS DISTRIBUTION
+            </div>
+            <div class="header-value">Best: {{ metrics.best_day }}% / Worst: {{ metrics.worst_day }}%</div>
+        </div>
+        <div class="chart-panel-body">
+            <div class="chart-wrapper"><canvas id="returnsChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 5: CATEGORY + ALLOCATION ═══ -->
+<div class="grid-3">
+    <div class="chart-panel">
+        <div class="chart-panel-header">
+            <div class="chart-panel-title">
+                <span class="dot amber"></span>
+                PERFORMANCE BY CATEGORY
+            </div>
+        </div>
+        <div class="chart-panel-body">
+            <div class="chart-wrapper"><canvas id="categoryTrendChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="chart-panel">
+        <div class="chart-panel-header">
+            <div class="chart-panel-title">
+                <span class="dot green"></span>
+                ASSET ALLOCATION
+            </div>
+        </div>
+        <div class="chart-panel-body">
+            <div class="chart-wrapper"><canvas id="allocationChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 6: INDIVIDUAL ASSET TREND ═══ -->
+<div class="chart-panel">
+    <div class="chart-panel-header">
+        <div class="chart-panel-title">
+            <span class="dot amber"></span>
+            INDIVIDUAL ASSET TREND
+        </div>
+        <select id="productSelect" class="terminal-select" onchange="updateIndividualChart()">
+            {% for p in products_list %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="chart-panel-body">
+        <div class="chart-wrapper"><canvas id="individualChart"></canvas></div>
+    </div>
+</div>
+
+<!-- ═══ JAVASCRIPT ═══ -->
+<script>
+    // ── Data from Django ──
+    const labels = {{ timeline_labels| safe }};
+    const overallData = {{ overall_net_worth| safe }};
+    const categoryData = {{ category_net_worth| safe }};
+    const individualData = {{ individual_trends| safe }};
+    const drawdownData = {{ drawdown_series| safe }};
+    const dailyReturnsPct = {{ daily_returns_pct| safe }};
+    const dailyReturnsLabels = {{ daily_returns_labels| safe }};
+    const ma7Data = {{ ma7| safe }};
+    const ma30Data = {{ ma30| safe }};
+    const categoryAllocation = {{ category_allocation| safe }};
+
+    // Debug: log data to check
+    console.log('categoryAllocation:', categoryAllocation);
+    console.log('individualData keys:', Object.keys(individualData));
+
+    // ── Chart.js defaults for dark panels ──
+    Chart.defaults.font.family = "'JetBrains Mono', 'Inter', monospace";
+    Chart.defaults.font.size = 11;
+
+    // ── Color Palette (Serious/Institutional) ──
+    const colors = ['#1e3a8a', '#475569', '#14532d', '#7c2d12', '#312e81', '#134e4a'];
+
+    // ── Crosshair Plugin (safe version) ──
+    const crosshairPlugin = {
+        id: 'crosshair',
+        afterDraw(chart) {
+            try {
+                const active = chart.tooltip && chart.tooltip.getActiveElements && chart.tooltip.getActiveElements();
+                if (active && active.length) {
+                    const ctx = chart.ctx;
+                    const x = active[0].element.x;
+                    const yScale = chart.scales.y;
+                    if (!yScale) return;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([3, 3]);
+                    ctx.moveTo(x, yScale.top);
+                    ctx.lineTo(x, yScale.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#e2e8f0';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } catch (e) { /* silently ignore */ }
+        }
+    };
+
+    // ── Common tooltip config ──
+    const zoomConfig = {
+        pan: {
+            enabled: true,
+            mode: 'x',
+        },
+        zoom: {
+            wheel: {
+                enabled: true,
+                speed: 0.01
+            },
+            pinch: {
+                enabled: true
+            },
+            mode: 'x',
+        }
+    };
+    
+    const lightTooltip = {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#e2e8f0',
+        borderWidth: 1,
+        titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
+        bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+        titleColor: '#1e293b',
+        bodyColor: '#475569',
+        padding: 12,
+        cornerRadius: 0,
+        callbacks: {
+            label: function (context) {
+                let label = context.dataset.label || '';
+                if (label) label += ': ';
+                if (context.parsed.y !== null) {
+                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                }
+                return label;
+            }
+        }
+    };
+
+    const lightGridColor = '#f1f5f9';
+    const lightTickColor = '#64748b';
+    const darkTickFont = { family: "'JetBrains Mono', monospace", size: 10 };
+
+    // ═══════════════════════════════════════
+    // CHART 1: Portfolio Net Worth
+    // ═══════════════════════════════════════
+    try {
+        const ctxPortfolio = document.getElementById('portfolioChart').getContext('2d');
+        const portfolioGradient = ctxPortfolio.createLinearGradient(0, 0, 0, 400);
+        portfolioGradient.addColorStop(0, 'rgba(30, 58, 138, 0.25)');
+        portfolioGradient.addColorStop(0.5, 'rgba(30, 58, 138, 0.05)');
+        portfolioGradient.addColorStop(1, 'rgba(30, 58, 138, 0)');
+
+        new Chart(ctxPortfolio, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Net Worth',
+                        data: overallData,
+                        borderColor: '#1e3a8a',
+                        backgroundColor: portfolioGradient,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#1e3a8a',
+                        pointHoverBorderColor: '#131722',
+                        pointHoverBorderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        order: 1
+                    },
+                    {
+                        label: 'MA(7)',
+                        data: ma7Data,
+                        borderColor: '#475569',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.3,
+                        order: 2
+                    },
+                    {
+                        label: 'MA(30)',
+                        data: ma30Data,
+                        borderColor: '#7c2d12',
+                        borderWidth: 1.5,
+                        borderDash: [4, 4],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.3,
+                        order: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: lightTooltip, zoom: zoomConfig },
+                scales: {
+                    y: {
+                        grid: { color: lightGridColor },
+                        ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: lightTickColor, font: darkTickFont, maxTicksLimit: 12, maxRotation: 0 }
+                    }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            },
+            plugins: [crosshairPlugin]
+        });
+        console.log('✓ Portfolio chart OK');
+    } catch (e) { console.error('Portfolio chart error:', e); }
+
+    // ═══════════════════════════════════════
+    // CHART 2: Drawdown Curve
+    // ═══════════════════════════════════════
+    try {
+        const ctxDrawdown = document.getElementById('drawdownChart').getContext('2d');
+        const ddGradient = ctxDrawdown.createLinearGradient(0, 0, 0, 320);
+        ddGradient.addColorStop(0, 'rgba(185, 28, 28, 0)');
+        ddGradient.addColorStop(1, 'rgba(185, 28, 28, 0.3)');
+
+        new Chart(ctxDrawdown, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Drawdown',
+                    data: drawdownData,
+                    borderColor: '#b91c1c',
+                    backgroundColor: ddGradient,
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#ef4444',
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...lightTooltip,
+                        callbacks: { label: ctx => 'Drawdown: ' + ctx.parsed.y.toFixed(2) + '%' }
+                    },
+                    zoom: zoomConfig
+                },
+                scales: {
+                    y: {
+                        grid: { color: lightGridColor },
+                        ticks: { color: lightTickColor, font: darkTickFont, callback: v => v + '%' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: lightTickColor, font: darkTickFont, maxTicksLimit: 8, maxRotation: 0 }
+                    }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            },
+            plugins: [crosshairPlugin]
+        });
+        console.log('✓ Drawdown chart OK');
+    } catch (e) { console.error('Drawdown chart error:', e); }
+
+    // ═══════════════════════════════════════
+    // CHART 3: Daily Returns Bar Chart
+    // ═══════════════════════════════════════
+    try {
+        const ctxReturns = document.getElementById('returnsChart').getContext('2d');
+        const returnColors = dailyReturnsPct.map(v => v >= 0 ? '#15803d' : '#b91c1c');
+
+        new Chart(ctxReturns, {
+            type: 'bar',
+            data: {
+                labels: dailyReturnsLabels,
+                datasets: [{
+                    label: 'Daily Return',
+                    data: dailyReturnsPct,
+                    backgroundColor: returnColors,
+                    borderWidth: 0,
+                    borderRadius: 1,
+                    barPercentage: 0.9,
+                    categoryPercentage: 0.95
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...lightTooltip,
+                        callbacks: { label: ctx => 'Return: ' + ctx.parsed.y.toFixed(2) + '%' }
+                    }
+                },
+                scales: {
+                    y: {
+                        grid: { color: lightGridColor },
+                        ticks: { color: lightTickColor, font: darkTickFont, callback: v => v + '%' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { display: false }
+                    }
+                }
+            }
+        });
+        console.log('✓ Returns chart OK');
+    } catch (e) { console.error('Returns chart error:', e); }
+
+    // ═══════════════════════════════════════
+    // CHART 4: Category Trend
+    // ═══════════════════════════════════════
+    try {
+        const ctxCategory = document.getElementById('categoryTrendChart').getContext('2d');
+        const categoryDatasets = Object.keys(categoryData).map((cat, i) => ({
+            label: cat,
+            data: categoryData[cat],
+            borderColor: colors[i % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.2,
+            fill: false
+        }));
+
+        new Chart(ctxCategory, {
+            type: 'line',
+            data: { labels: labels, datasets: categoryDatasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: '#64748b', font: { family: "'JetBrains Mono', monospace", size: 10 } }
+                    },
+                    tooltip: lightTooltip,
+                    zoom: zoomConfig
+                },
+                scales: {
+                    y: { grid: { color: lightGridColor }, ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() } },
+                    x: { grid: { display: false }, ticks: { color: lightTickColor, font: darkTickFont, maxTicksLimit: 12, maxRotation: 0 } }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            },
+            plugins: [crosshairPlugin]
+        });
+        console.log('✓ Category chart OK');
+    } catch (e) { console.error('Category chart error:', e); }
+
+    // ═══════════════════════════════════════
+    // CHART 5: Asset Allocation Donut
+    // ═══════════════════════════════════════
+    try {
+        const ctxAllocation = document.getElementById('allocationChart').getContext('2d');
+        const allocLabels = Object.keys(categoryAllocation);
+        const allocValues = Object.values(categoryAllocation);
+        console.log('Allocation labels:', allocLabels, 'values:', allocValues);
+
+        new Chart(ctxAllocation, {
+            type: 'doughnut',
+            data: {
+                labels: allocLabels,
+                datasets: [{
+                    data: allocValues,
+                    backgroundColor: colors.slice(0, allocLabels.length),
+                    borderColor: '#ffffff',
+                    borderWidth: 3,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 12, color: '#64748b', font: { family: "'JetBrains Mono', monospace", size: 10 } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderColor: '#e2e8f0',
+                        borderWidth: 1,
+                        titleColor: '#1e293b',
+                        bodyColor: '#475569',
+                        padding: 12,
+                        cornerRadius: 3,
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((context.parsed / total) * 100).toFixed(1);
+                                return label + ': $' + context.parsed.toLocaleString() + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        console.log('✓ Allocation chart OK');
+    } catch (e) { console.error('Allocation chart error:', e); }
+
+    // ═══════════════════════════════════════
+    // CHART 6: Individual Asset Trend
+    // ═══════════════════════════════════════
+    const ctxIndividual = document.getElementById('individualChart').getContext('2d');
+    let individualChart = null;
+
+    function updateIndividualChart() {
+        try {
+            const select = document.getElementById('productSelect');
+            const selectedId = select.value;
+            console.log('Selected ID:', selectedId, 'type:', typeof selectedId);
+            console.log('Available keys:', Object.keys(individualData));
+
+            const asset = individualData[selectedId];
+            if (!asset) {
+                console.warn('No asset found for ID:', selectedId);
+                return;
+            }
+
+            if (individualChart) {
+                individualChart.destroy();
+            }
+
+            const indGradient = ctxIndividual.createLinearGradient(0, 0, 0, 320);
+            indGradient.addColorStop(0, 'rgba(124, 45, 18, 0.2)');
+            indGradient.addColorStop(1, 'rgba(124, 45, 18, 0)');
+
+            individualChart = new Chart(ctxIndividual, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: asset.name,
+                        data: asset.data,
+                        borderColor: '#7c2d12',
+                        backgroundColor: indGradient,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#7c2d12',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: lightTooltip, zoom: zoomConfig },
+                    scales: {
+                        y: { grid: { color: lightGridColor }, ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() } },
+                        x: { grid: { display: false }, ticks: { color: lightTickColor, font: darkTickFont, maxTicksLimit: 12, maxRotation: 0 } }
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                },
+                plugins: [crosshairPlugin]
+            });
+            console.log('✓ Individual chart OK for:', asset.name);
+        } catch (e) { console.error('Individual chart error:', e); }
+    }
+
+    // Initialize individual chart
+    if (Object.keys(individualData).length > 0) {
+        updateIndividualChart();
+    }
+
+</script>
+{% endif %}
+{% endblock %}

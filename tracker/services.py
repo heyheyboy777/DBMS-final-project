@@ -176,3 +176,67 @@ def get_ebay_average_price(name):
             
         return round(sum(valid_prices) / len(valid_prices), 2)
     return 0
+
+
+def fetch_ptcg_news():
+    """
+    從 Google News RSS 抓取 PTCG / Pokemon TCG 相關新聞。
+    使用 Python 內建的 xml.etree.ElementTree 解析 XML，不需額外安裝套件。
+    回傳最多 10 則新聞：[{title, link, source, published}]
+    """
+    import xml.etree.ElementTree as ET
+    from datetime import datetime
+
+    rss_url = "https://news.google.com/rss/search?q=Pokemon+TCG+OR+PTCG+OR+%E5%AF%B6%E5%8F%AF%E5%A4%A2%E5%8D%A1%E7%89%8C&hl=en&gl=US&ceid=US:en"
+
+    try:
+        response = requests.get(rss_url, timeout=10, headers={
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        })
+        if response.status_code != 200:
+            print(f"Google News RSS failed: {response.status_code}")
+            return []
+
+        root = ET.fromstring(response.content)
+        channel = root.find('channel')
+        if channel is None:
+            return []
+
+        news_list = []
+        for item in channel.findall('item')[:10]:
+            title = item.findtext('title', '')
+            link = item.findtext('link', '')
+            pub_date_str = item.findtext('pubDate', '')
+            source_el = item.find('source')
+            source = source_el.text if source_el is not None else 'Unknown'
+
+            # 解析發佈時間
+            published = pub_date_str
+            try:
+                # Google News RSS 格式: "Fri, 23 May 2026 08:00:00 GMT"
+                dt = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %Z')
+                # 計算多久前
+                diff = datetime.utcnow() - dt
+                if diff.days > 0:
+                    published = f"{diff.days}d ago"
+                elif diff.seconds >= 3600:
+                    published = f"{diff.seconds // 3600}h ago"
+                elif diff.seconds >= 60:
+                    published = f"{diff.seconds // 60}m ago"
+                else:
+                    published = "just now"
+            except (ValueError, TypeError):
+                pass  # 保留原始字串
+
+            news_list.append({
+                'title': title,
+                'link': link,
+                'source': source,
+                'published': published,
+            })
+
+        return news_list
+
+    except Exception as e:
+        print(f"Fetch PTCG news error: {e}")
+        return []

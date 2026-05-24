@@ -1,0 +1,303 @@
+{% extends 'tracker/base.html' %}
+
+{% block page_title %}ROI & Analytics{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .charts-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .chart-card {
+        background-color: var(--card-bg);
+        border-radius: 0;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .chart-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        width: 100%;
+        text-align: left;
+        color: var(--text-main);
+    }
+
+    .chart-wrapper {
+        width: 100%;
+        max-width: 300px;
+        aspect-ratio: 1;
+        position: relative;
+    }
+
+    .summary-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .metric-card {
+        background-color: var(--card-bg);
+        border-radius: 0;
+        padding: 24px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .metric-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+    
+    .metric-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+    
+    .profit-positive { color: var(--up-color); }
+    .profit-negative { color: var(--down-color); }
+    
+    .badge-positive { background-color: #f1f5f9; color: var(--up-color); border-radius: 0; }
+    .badge-negative { background-color: #f1f5f9; color: var(--down-color); border-radius: 0; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="summary-metrics">
+    <div class="metric-card">
+        <div class="metric-title">Total Investment</div>
+        <div class="metric-value">${{ total_cost }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-title">Current Market Value</div>
+        <div class="metric-value">${{ total_value }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-title">Net Profit / Loss</div>
+        <div class="metric-value {% if total_profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+            {% if total_profit > 0 %}+{% endif %}${{ total_profit }}
+        </div>
+    </div>
+</div>
+
+<div class="charts-container">
+    <div class="chart-card">
+        <div class="chart-title">Asset Allocation by Category</div>
+        <div class="chart-wrapper">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <div class="chart-title">Total Cost vs Market Value</div>
+        <div class="chart-wrapper">
+            <canvas id="costValueChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="padding: 0;">
+    <div style="padding: 24px; border-bottom: 1px solid var(--border-color);">
+        <h3 style="font-size: 18px; font-weight: 600; margin: 0;">Individual Asset Performance</h3>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Asset Name</th>
+                <th>Category</th>
+                <th>Cost Basis</th>
+                <th>Current Value</th>
+                <th>Net Profit</th>
+                <th>ROI %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in item_roi_list %}
+            <tr>
+                <td style="width: 80px;">
+                    {% if item.image %}
+                        <img src="{{ item.image }}" style="width: 60px; border-radius: 0;">
+                    {% else %}
+                        <div style="width: 60px; height: 80px; background: #eee; border-radius: 0;"></div>
+                    {% endif %}
+                </td>
+                <td style="font-weight: 500; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ item.name }}">
+                    {{ item.name }}
+                </td>
+                <td><span class="badge">{{ item.category }}</span></td>
+                <td>${{ item.cost }}</td>
+                <td style="font-weight: 500;">${{ item.value }}</td>
+                <td class="{% if item.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                    {% if item.profit > 0 %}+{% endif %}${{ item.profit }}
+                </td>
+                <td>
+                    <span class="badge {% if item.roi_percent >= 0 %}badge-positive{% else %}badge-negative{% endif %}" style="font-size: 14px; padding: 6px 10px;">
+                        {% if item.roi_percent > 0 %}+{% endif %}{{ item.roi_percent }}%
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    No assets found to calculate ROI. Add some collectibles to your inventory first!
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Data from Django Context
+    const categoryLabels = JSON.parse('{{ category_labels|safe }}');
+    const categoryValues = JSON.parse('{{ category_values|safe }}');
+    
+    const totalCost = {{ total_cost }};
+    const totalValue = {{ total_value }};
+
+    // Color Palette
+    const colors = [
+        '#1e3a8a', '#475569', '#14532d', '#7c2d12', '#312e81', '#134e4a'
+    ];
+
+    // Chart 1: Category Pie Chart
+    const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctxCategory, {
+        type: 'pie',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                data: categoryValues,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: {
+                            family: "'JetBrains Mono', monospace",
+                            size: 10
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed !== null) {
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Chart 2: Cost vs Value Donut Chart
+    const totalProfitPct = totalCost > 0 ? (((totalValue - totalCost) / totalCost) * 100).toFixed(2) : 0;
+    
+    const centerTextPlugin = {
+        id: 'centerText',
+        beforeDraw: function(chart) {
+            var width = chart.width,
+                height = chart.height,
+                ctx = chart.ctx;
+
+            ctx.restore();
+            var fontSize = (height / 114).toFixed(2);
+            ctx.font = "700 " + fontSize + "em 'Inter'";
+            ctx.textBaseline = "middle";
+
+            var text = (totalProfitPct > 0 ? '+' : '') + totalProfitPct + "%",
+                textX = Math.round((width - ctx.measureText(text).width) / 2),
+                textY = height / 2;
+
+            ctx.fillStyle = totalProfitPct >= 0 ? "var(--up-color)" : "var(--down-color)";
+            ctx.fillText(text, textX, textY - 10);
+
+            ctx.font = "600 " + (fontSize / 2.8).toFixed(2) + "em 'Inter'";
+            ctx.fillStyle = "var(--text-muted)";
+            var label = "ROI";
+            var labelX = Math.round((width - ctx.measureText(label).width) / 2);
+            ctx.fillText(label, labelX, textY + 20);
+            ctx.save();
+        }
+    };
+
+    const ctxCostValue = document.getElementById('costValueChart').getContext('2d');
+    new Chart(ctxCostValue, {
+        type: 'doughnut',
+        data: {
+            labels: ['Total Cost Basis', 'Total Current Value'],
+            datasets: [{
+                data: [totalCost, totalValue],
+                backgroundColor: ['#2563eb', '#dc2626'], // blue for cost, red for value
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: {
+                            family: "'JetBrains Mono', monospace",
+                            size: 10
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed !== null) {
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [centerTextPlugin]
+    });
+</script>
+{% endblock %}

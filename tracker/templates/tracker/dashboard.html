@@ -1,0 +1,515 @@
+{% extends 'tracker/base.html' %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* ═══════════════════════════════════════════
+       DASHBOARD STYLES
+       ═══════════════════════════════════════════ */
+
+    /* ── Summary Cards ── */
+    .summary-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+
+    .summary-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        padding: 16px 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .summary-card:hover {
+        border-color: #cbd5e1;
+    }
+
+    .summary-card .card-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+    }
+
+    .summary-card .card-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+    }
+
+    .summary-card .card-value {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .summary-card .card-sub {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .positive { color: var(--up-color) !important; }
+    .negative { color: var(--down-color) !important; }
+
+    /* ── Grid Layout ── */
+    .dash-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .dash-grid-equal {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .dash-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+    .dash-card-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dash-card-header h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dash-card-body {
+        padding: 20px 24px;
+    }
+
+    /* ── Holdings Table ── */
+    .holdings-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .holdings-table th {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+        background: #fafbfc;
+    }
+
+    .holdings-table td {
+        padding: 10px 12px;
+        font-size: 13px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+
+    .holdings-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .holdings-table tr:hover {
+        background: #f8fafc;
+    }
+
+    .item-img {
+        width: 24px;
+        height: 24px;
+        border-radius: 3px;
+        object-fit: cover;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .item-name {
+        font-weight: 500;
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cat-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        background: #e2e8f0;
+        color: #334155;
+    }
+
+    .change-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .change-badge.up { background: #ecfdf5; color: #059669; }
+    .change-badge.down { background: #fef2f2; color: #dc2626; }
+    .change-badge.flat { background: #f3f4f6; color: #6b7280; }
+
+    /* ── Mover Card ── */
+    .mover-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .mover-item:last-child {
+        border-bottom: none;
+    }
+
+    .mover-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .mover-info img {
+        width: 28px;
+        height: 28px;
+        border-radius: 3px;
+        object-fit: cover;
+    }
+
+    .mover-info .mover-name {
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mover-change {
+        font-size: 14px;
+        font-weight: 700;
+        white-space: nowrap;
+        margin-left: 12px;
+    }
+
+    /* ── Chart Container ── */
+    .chart-container {
+        position: relative;
+        width: 100%;
+        height: 220px;
+    }
+
+    /* ── Quick Links ── */
+    .quick-links {
+        display: flex;
+        gap: 12px;
+        margin-top: 4px;
+    }
+
+    .quick-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--text-main);
+        background: #f3f4f6;
+        border: 1px solid var(--border-color);
+        transition: all 0.2s;
+    }
+
+    .quick-link:hover {
+        background: var(--sidebar-active);
+        color: #fff;
+        border-color: var(--sidebar-active);
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-state .icon { font-size: 32px; margin-bottom: 8px; }
+
+    /* ── Animations ── */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .summary-card { animation: fadeIn 0.4s ease backwards; }
+    .summary-card:nth-child(1) { animation-delay: 0s; }
+    .summary-card:nth-child(2) { animation-delay: 0.05s; }
+    .summary-card:nth-child(3) { animation-delay: 0.1s; }
+    .summary-card:nth-child(4) { animation-delay: 0.15s; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not user.is_authenticated %}
+<div class="empty-state">
+    <p>Please <a href="{% url 'login' %}" style="color: var(--sidebar-active); font-weight: 600;">log in</a> to view your dashboard.</p>
+</div>
+{% else %}
+
+<!-- ═══ SECTION 1: SUMMARY CARDS ═══ -->
+<div class="summary-row">
+    <div class="summary-card">
+        <div class="card-label">TOTAL ITEMS</div>
+        <div class="card-value mono-data">{{ total_items }}</div>
+        <div class="card-sub">Unique assets tracked</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="card-label">TOTAL INVESTMENT</div>
+        <div class="card-value mono-data">${{ total_investment }}</div>
+        <div class="card-sub">Cost basis</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="card-label">CURRENT VALUE</div>
+        <div class="card-value mono-data">${{ current_value }}</div>
+        <div class="card-sub">At latest market price</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="card-label">TOTAL P&L</div>
+        <div class="card-value mono-data {% if total_pl >= 0 %}positive{% else %}negative{% endif %}">
+            {% if total_pl > 0 %}+{% endif %}${{ total_pl }}
+        </div>
+        <div class="card-sub mono-data {% if total_pl_pct >= 0 %}positive{% else %}negative{% endif %}">
+            {% if total_pl_pct > 0 %}+{% endif %}{{ total_pl_pct }}%
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 2: HOLDINGS + ALLOCATION ═══ -->
+<div class="dash-grid">
+    <!-- Left: Holdings Overview -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <h3>HOLDINGS OVERVIEW</h3>
+            <a href="{% url 'inventory' %}" style="font-size:12px; color: var(--sidebar-active); text-decoration:none; font-weight:600; text-transform:uppercase;">View All &rarr;</a>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="holdings-table">
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Category</th>
+                        <th class="text-right">Qty</th>
+                        <th class="text-right">Price</th>
+                        <th class="text-right">P&L</th>
+                        <th class="text-right">Today</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in recent_changes %}
+                    <tr>
+                        <td>
+                            <div style="display:flex; align-items:center;">
+                                {% if item.imgurl %}
+                                <img src="{{ item.imgurl }}" class="item-img" alt="">
+                                {% else %}
+                                <div style="width:24px;height:24px;background:#f1f5f9;border-radius:3px;margin-right:8px;"></div>
+                                {% endif %}
+                                <span class="item-name" title="{{ item.name }}">{{ item.name }}</span>
+                            </div>
+                        </td>
+                        <td><span class="cat-badge">{{ item.category }}</span></td>
+                        <td class="text-right mono-data">{{ item.qty }}</td>
+                        <td class="text-right mono-data" style="font-weight:600;">${{ item.latest_price }}</td>
+                        <td class="text-right mono-data">
+                            <span class="{% if item.pl >= 0 %}positive{% else %}negative{% endif %}" style="font-weight:600;">
+                                {% if item.pl > 0 %}+{% endif %}${{ item.pl }}
+                            </span>
+                        </td>
+                        <td class="text-right mono-data">
+                            <span class="change-badge {% if item.daily_change > 0 %}up{% elif item.daily_change < 0 %}down{% else %}flat{% endif %}">
+                                {% if item.daily_change > 0 %}+{% endif %}{{ item.daily_change }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            No holdings yet. <a href="{% url 'search_product' %}" style="color: var(--sidebar-active); font-weight:600;">Add your first item →</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right: Category Allocation -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <h3>ALLOCATION</h3>
+        </div>
+        <div class="dash-card-body">
+            <div class="chart-container">
+                <canvas id="allocationChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 3: MOVERS ═══ -->
+<div class="dash-grid-equal">
+    <!-- Top Gainers -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <h3>TODAY'S GAINERS</h3>
+        </div>
+        <div class="dash-card-body">
+            {% for item in top_gainers %}
+            <div class="mover-item">
+                <div class="mover-info">
+                    {% if item.imgurl %}
+                    <img src="{{ item.imgurl }}" alt="">
+                    {% else %}
+                    <div style="width:28px;height:28px;background:#f1f5f9;border-radius:3px;"></div>
+                    {% endif %}
+                    <span class="mover-name">{{ item.name }}</span>
+                </div>
+                <span class="mover-change positive mono-data">+{{ item.daily_change }}%</span>
+            </div>
+            {% empty %}
+            <div class="empty-state" style="padding:20px;">
+                <span style="color:#9ca3af;">No gainers today</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Top Losers -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <h3>TODAY'S LOSERS</h3>
+        </div>
+        <div class="dash-card-body">
+            {% for item in top_losers %}
+            <div class="mover-item">
+                <div class="mover-info">
+                    {% if item.imgurl %}
+                    <img src="{{ item.imgurl }}" alt="">
+                    {% else %}
+                    <div style="width:28px;height:28px;background:#f1f5f9;border-radius:3px;"></div>
+                    {% endif %}
+                    <span class="mover-name">{{ item.name }}</span>
+                </div>
+                <span class="mover-change negative mono-data">{{ item.daily_change }}%</span>
+            </div>
+            {% empty %}
+            <div class="empty-state" style="padding:20px;">
+                <span style="color:#9ca3af;">No losers today</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SECTION 4: QUICK LINKS ═══ -->
+<div class="dash-card">
+    <div class="dash-card-body" style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:600; color: var(--text-muted); font-size:12px; text-transform:uppercase;">Quick Actions</span>
+        <div class="quick-links">
+            <a href="{% url 'search_product' %}" class="quick-link">Search & Add</a>
+            <a href="{% url 'inventory' %}" class="quick-link">Inventory</a>
+            <a href="{% url 'market_dashboard' %}" class="quick-link">Market</a>
+            <a href="{% url 'analytics_dashboard' %}" class="quick-link">Analytics</a>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ JAVASCRIPT ═══ -->
+<script>
+    // Category Allocation Donut
+    const catData = {{ category_breakdown|safe }};
+
+    if (catData && catData.length > 0) {
+        const colors = ['#1e3a8a', '#475569', '#14532d', '#7c2d12', '#312e81', '#134e4a'];
+        const ctx = document.getElementById('allocationChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: catData.map(d => d.category),
+                datasets: [{
+                    data: catData.map(d => d.value),
+                    backgroundColor: colors.slice(0, catData.length),
+                    borderColor: '#ffffff',
+                    borderWidth: 3,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 12,
+                            color: '#64748b',
+                            font: { family: "'JetBrains Mono', monospace", size: 10 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': $' + context.parsed.toLocaleString() + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('allocationChart').parentElement.innerHTML =
+            '<div class="empty-state"><p>Add items to see allocation</p></div>';
+    }
+</script>
+
+{% endif %}
+{% endblock %}
