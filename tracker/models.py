@@ -4,7 +4,8 @@ from django.contrib.auth.models import User
 # 收藏品目錄 (Product Master)
 class Collectible(models.Model):
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=50) # 如：卡牌、球鞋
+    category = models.CharField(max_length=50) # 如：寶可夢卡牌、球鞋
+    platform = models.CharField(max_length=50, blank=True, null=True) # 如：eBay, PTCG API
     external_id = models.CharField(max_length=100, unique=True)
     imgurl = models.URLField(blank=True, null=True) # 可以選擇性加上圖片網址
     class Meta:

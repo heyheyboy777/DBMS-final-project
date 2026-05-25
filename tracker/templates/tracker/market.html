@@ -1,0 +1,636 @@
+{% extends 'tracker/base.html' %}
+
+{% block page_title %}Market Overview{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* ═══════════════════════════════════════════
+       MARKET PAGE STYLES
+       ═══════════════════════════════════════════ */
+
+    /* ── Heatmap Treemap ── */
+    .heatmap-section {
+        margin-bottom: 32px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-title .icon {
+        font-size: 18px;
+    }
+
+    .heatmap-container {
+        display: flex;
+        flex-wrap: wrap;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        overflow: hidden;
+        min-height: 180px;
+        border: 1px solid var(--border-color);
+    }
+
+    .heatmap-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 16px;
+        cursor: default;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .heatmap-cell:hover {
+        filter: brightness(1.15);
+        z-index: 1;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .heatmap-cell .cat-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        margin-bottom: 4px;
+        text-align: center;
+    }
+
+    .heatmap-cell .cat-change {
+        font-size: 22px;
+        font-weight: 800;
+        color: #fff;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+
+    .heatmap-cell .cat-value {
+        font-size: 11px;
+        color: rgba(255,255,255,0.8);
+        margin-top: 4px;
+    }
+
+    .heatmap-cell .cat-count {
+        font-size: 10px;
+        color: rgba(255,255,255,0.6);
+        margin-top: 2px;
+    }
+
+    /* ── Layout Grid ── */
+    .market-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .ranking-card {
+        background: var(--card-bg);
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+    }
+
+    .ranking-card .card-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ranking-card .card-header h3 {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ranking-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ranking-table th {
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-color);
+        text-align: left;
+        background: #fafbfc;
+    }
+
+    .ranking-table td {
+        padding: 12px 16px;
+        font-size: 13px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+
+    .ranking-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .ranking-table tr:hover {
+        background: #f9fafb;
+    }
+
+    .rank-number {
+        font-weight: 700;
+        color: var(--text-muted);
+        width: 32px;
+        text-align: center;
+    }
+
+    .rank-number.top-1 { color: #f59e0b; }
+    .rank-number.top-2 { color: #94a3b8; }
+    .rank-number.top-3 { color: #b45309; }
+
+    .asset-name {
+        font-weight: 500;
+        color: var(--text-main);
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .asset-img {
+        width: 24px;
+        height: 24px;
+        border-radius: 3px;
+        object-fit: cover;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+
+    .change-positive { color: var(--up-color); font-weight: 600; }
+    .change-negative { color: var(--down-color); font-weight: 600; }
+    .change-neutral { color: #6b7280; font-weight: 500; }
+
+    .change-badge {
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .change-badge.positive {
+        background: #ecfdf5;
+        color: var(--up-color);
+    }
+
+    .change-badge.negative {
+        background: #fef2f2;
+        color: var(--down-color);
+    }
+
+    .change-badge.neutral {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .sparkline-cell {
+        width: 80px;
+    }
+
+    .sparkline-cell canvas {
+        display: block;
+    }
+
+    .cat-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        background: #e2e8f0;
+        color: #334155;
+    }
+
+    .news-card {
+        background: var(--card-bg);
+        border-radius: 3px;
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .news-card .card-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .news-card .card-header h3 {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f1f5f9;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+        background: #e5e7eb;
+    }
+
+    .refresh-btn.loading .refresh-icon {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .news-list {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 520px;
+    }
+
+    .news-item {
+        padding: 14px 20px;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s;
+    }
+
+    .news-item:last-child {
+        border-bottom: none;
+    }
+
+    .news-item:hover {
+        background: #f9fafb;
+    }
+
+    .news-item a {
+        text-decoration: none;
+        color: var(--text-main);
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.4;
+        display: block;
+    }
+
+    .news-item a:hover {
+        color: var(--sidebar-active);
+    }
+
+    .news-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .news-source {
+        font-weight: 600;
+        color: #6366f1;
+    }
+
+    .news-empty {
+        padding: 40px 20px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    /* ── Price text ── */
+    .price-text {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════
+     SECTION 1: CATEGORY HEATMAP
+     ═══════════════════════════════════════════ -->
+<div class="heatmap-section">
+    <div class="section-header">
+        <div class="section-title">
+            CATEGORY HEATMAP
+        </div>
+        <span style="font-size: 12px; color: var(--text-muted);">Size = Market Value · Color = 7-Day Change</span>
+    </div>
+    <div class="heatmap-container" id="heatmapContainer">
+        <!-- Rendered by JS -->
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 2: RANKING TABLE + NEWS
+     ═══════════════════════════════════════════ -->
+<div class="market-grid">
+    <!-- Left: Hot Assets Ranking -->
+    <div class="ranking-card">
+        <div class="card-header">
+            <h3>HOT ASSETS RANKING</h3>
+            <span style="font-size: 12px; color: var(--text-muted);">Sorted by 7-Day Change</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px">#</th>
+                        <th>Asset</th>
+                        <th>Category</th>
+                        <th class="text-right">Price</th>
+                        <th class="text-right">7D</th>
+                        <th class="text-right">30D</th>
+                        <th style="width:90px" class="text-right">Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ranking_list %}
+                    <tr>
+                        <td>
+                            <span class="rank-number {% if forloop.counter == 1 %}top-1{% elif forloop.counter == 2 %}top-2{% elif forloop.counter == 3 %}top-3{% endif %}">
+                                {{ forloop.counter }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                {% if item.imgurl %}
+                                <img src="{{ item.imgurl }}" class="asset-img" alt="">
+                                {% else %}
+                                <div style="width:24px;height:24px;background:#f1f5f9;border-radius:3px;margin-right:10px;"></div>
+                                {% endif %}
+                                <span class="asset-name" title="{{ item.name }}">{{ item.name }}</span>
+                            </div>
+                        </td>
+                        <td><span class="cat-badge">{{ item.category }}</span></td>
+                        <td class="price-text text-right mono-data">${{ item.latest_price }}</td>
+                        <td class="text-right mono-data">
+                            <span class="change-badge {% if item.change_7d > 0 %}positive{% elif item.change_7d < 0 %}negative{% else %}neutral{% endif %}">
+                                {% if item.change_7d > 0 %}+{% endif %}{{ item.change_7d }}%
+                            </span>
+                        </td>
+                        <td class="text-right mono-data">
+                            <span class="change-badge {% if item.change_30d > 0 %}positive{% elif item.change_30d < 0 %}negative{% else %}neutral{% endif %}">
+                                {% if item.change_30d > 0 %}+{% endif %}{{ item.change_30d }}%
+                            </span>
+                        </td>
+                        <td class="sparkline-cell text-right">
+                            <canvas id="spark-{{ item.id }}" width="80" height="30"></canvas>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; padding:40px; color:var(--text-muted);">
+                            No price data available yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right: PTCG News -->
+    <div class="news-card">
+        <div class="card-header">
+            <h3>PTCG NEWS</h3>
+            <button class="refresh-btn" id="refreshNewsBtn" onclick="refreshNews()">
+                <svg class="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                Refresh
+            </button>
+        </div>
+        <div class="news-list" id="newsList">
+            {% for news in news_list %}
+            <div class="news-item">
+                <a href="{{ news.link }}" target="_blank" rel="noopener">{{ news.title }}</a>
+                <div class="news-meta">
+                    <span class="news-source">{{ news.source }}</span>
+                    <span>·</span>
+                    <span>{{ news.published }}</span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="news-empty">
+                No news available. Click refresh to fetch latest PTCG news.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════ -->
+<script>
+    // ── Data ──
+    const heatmapData = {{ heatmap_data|safe }};
+    const sparklineData = {{ sparkline_json|safe }};
+
+    // ═══════════════════════════════════════
+    // 1. Category Heatmap (Treemap)
+    // ═══════════════════════════════════════
+    function getHeatmapColor(change) {
+        // Map change% to color: red(-10%) → gray(0%) → green(+10%)
+        const clamp = Math.max(-10, Math.min(10, change));
+        const ratio = (clamp + 10) / 20; // 0..1
+        
+        if (ratio < 0.5) {
+            // Red spectrum
+            const intensity = ratio / 0.5; // 0..1
+            const r = Math.round(180 + (1 - intensity) * 50);
+            const g = Math.round(60 * intensity);
+            const b = Math.round(60 * intensity);
+            return `rgb(${r}, ${g}, ${b})`;
+        } else {
+            // Green spectrum
+            const intensity = (ratio - 0.5) / 0.5; // 0..1
+            const r = Math.round(60 * (1 - intensity));
+            const g = Math.round(120 + intensity * 60);
+            const b = Math.round(60 * (1 - intensity));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+    }
+
+    function renderHeatmap() {
+        const container = document.getElementById('heatmapContainer');
+        container.innerHTML = '';
+
+        if (heatmapData.length === 0) {
+            container.innerHTML = '<div style="padding:40px;text-align:center;color:#6b7280;width:100%;">No category data available.</div>';
+            return;
+        }
+
+        const totalValue = heatmapData.reduce((sum, d) => sum + d.value, 0);
+
+        heatmapData.forEach(d => {
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+
+            // Width proportional to value (min 15%)
+            const pct = Math.max(15, (d.value / totalValue) * 100);
+            cell.style.flex = `${pct} 1 0%`;
+            cell.style.backgroundColor = getHeatmapColor(d.change);
+
+            const sign = d.change > 0 ? '+' : '';
+
+            cell.innerHTML = `
+                <div class="cat-name">${d.category}</div>
+                <div class="cat-change mono-data">${sign}${d.change}%</div>
+                <div class="cat-value mono-data">$${d.value.toLocaleString()}</div>
+                <div class="cat-count mono-data">${d.count} asset${d.count > 1 ? 's' : ''}</div>
+            `;
+
+            container.appendChild(cell);
+        });
+    }
+
+    renderHeatmap();
+
+    // ═══════════════════════════════════════
+    // 2. Sparkline Charts
+    // ═══════════════════════════════════════
+    Object.keys(sparklineData).forEach(pid => {
+        const canvas = document.getElementById('spark-' + pid);
+        if (!canvas) return;
+
+        const data = sparklineData[pid];
+        if (!data || data.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        const isPositive = data[data.length - 1] >= data[0];
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map((_, i) => i),
+                datasets: [{
+                    data: data,
+                    borderColor: isPositive ? '#089981' : '#F23645',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: false,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                },
+                animation: { duration: 0 }
+            }
+        });
+    });
+
+    // ═══════════════════════════════════════
+    // 3. News Refresh (AJAX)
+    // ═══════════════════════════════════════
+    function refreshNews() {
+        const btn = document.getElementById('refreshNewsBtn');
+        const list = document.getElementById('newsList');
+        
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        fetch('{% url "refresh_news" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+
+            if (data.news && data.news.length > 0) {
+                list.innerHTML = data.news.map(n => `
+                    <div class="news-item">
+                        <a href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
+                        <div class="news-meta">
+                            <span class="news-source">${n.source}</span>
+                            <span>·</span>
+                            <span>${n.published}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = '<div class="news-empty">No news found. Try again later.</div>';
+            }
+        })
+        .catch(err => {
+            console.error('News refresh error:', err);
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            list.innerHTML = '<div class="news-empty">Failed to fetch news. Please try again.</div>';
+        });
+    }
+
+    // CSRF cookie helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+</script>
+
+{% endblock %}

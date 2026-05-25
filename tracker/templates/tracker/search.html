@@ -1,30 +1,151 @@
-<h2>搜尋收藏品</h2>
-<form method="GET" action="{% url 'search_product' %}">
-    <input type="text" name="q" value="{{ query|default_if_none:'' }}" placeholder="例如：Pokemon Card PSA 10">
-    <label style="margin: 0 10px;">
-        <input type="checkbox" name="search_ptcg" value="1" {% if search_ptcg %}checked{% endif %}>
-        同時搜尋寶可夢卡牌 (PTCG API)
-    </label>
-    <button type="submit">搜尋</button>
-</form>
+{% extends 'tracker/base.html' %}
 
-<hr>
+{% block page_title %}Search Collectibles{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-filter-card {
+        margin-bottom: 30px;
+    }
+    .search-filter-card form {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .ptcg-checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-main);
+        cursor: pointer;
+    }
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 24px;
+    }
+    .result-card {
+        background-color: var(--card-bg);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid var(--border-color);
+    }
+    .result-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .result-image-wrapper {
+        width: 100%;
+        padding-top: 100%; /* 1:1 Aspect Ratio */
+        position: relative;
+        background-color: #f9fafb;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .result-image-wrapper img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 16px;
+    }
+    .result-info {
+        padding: 16px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .result-name {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 8px;
+        color: var(--text-main);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .result-price {
+        font-size: 16px;
+        font-weight: 700;
+        color: #059669;
+        margin-bottom: 12px;
+    }
+    .result-meta {
+        font-size: 12px;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        margin-top: auto;
+    }
+    .add-btn {
+        width: 100%;
+        text-align: center;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card search-filter-card">
+    <form method="GET" action="{% url 'search_product' %}">
+        <div style="flex: 1; min-width: 200px;">
+            <input type="text" name="q" value="{{ query|default_if_none:'' }}" placeholder="e.g., Charizard VMAX PSA 10" style="width: 100%; padding: 10px 16px; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-family: inherit;">
+        </div>
+        
+        <label class="ptcg-checkbox-wrapper">
+            <input type="checkbox" name="search_ptcg" value="1" {% if search_ptcg %}checked{% endif %}>
+            Include Pokémon Cards (PTCG API)
+        </label>
+        
+        <button type="submit" class="btn-primary">Search</button>
+    </form>
+</div>
 
 {% if results %}
-    <div style="display: flex; flex-wrap: wrap;">
+    <div class="results-grid">
     {% for item in results %}
-        <div style="border: 1px solid #ccc; margin: 10px; padding: 10px; width: 200px;">
-            <img src="{{ item.image_url }}" style="width: 100%;">
-            <p><strong>{{ item.name }}</strong></p>
-            <p>價格：{{ item.price }} {{ item.currency }}</p>
-            <p style="font-size: 0.8em; color: #666;">來源：{{ item.platform|default:"未知" }}</p>
-            
-            <a href="{% url 'add_to_inventory' %}?external_id={{ item.external_id }}&name={{ item.name }}&price={{ item.price }}&image_url={{ item.image_url }}&platform={{ item.platform }}">
-                <button type="button">加入我的清單</button>
-            </a>
+        <div class="result-card">
+            <div class="result-image-wrapper">
+                <img src="{{ item.image_url }}" alt="{{ item.name }}">
+            </div>
+            <div class="result-info">
+                <div class="result-name" title="{{ item.name }}">{{ item.name }}</div>
+                <div class="result-price">${{ item.price }} {{ item.currency }}</div>
+                
+                <div class="result-meta">
+                    <span class="badge">{{ item.platform|default:"Unknown" }}</span>
+                    <span class="badge" style="background-color:#e0f2fe; color:#0369a1;">{{ item.category|default:"Unknown" }}</span>
+                </div>
+                
+                <a href="{% url 'add_to_inventory' %}?external_id={{ item.external_id }}&name={{ item.name }}&price={{ item.price }}&image_url={{ item.image_url }}&platform={{ item.platform }}&category={{ item.category }}" class="btn-primary add-btn" style="color: white; text-decoration: none;">
+                    Add to Inventory
+                </a>
+            </div>
         </div>
     {% endfor %}
     </div>
 {% elif query %}
-    <p>找不到相關商品，請更換關鍵字再試試。</p>
+    <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px; opacity:0.5;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <h3>No results found</h3>
+        <p style="margin-top: 8px;">Try modifying your search keywords or toggle the PTCG API checkbox.</p>
+    </div>
 {% endif %}
+
+{% endblock %}

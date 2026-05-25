@@ -1,89 +1,77 @@
-<!DOCTYPE html>
-<html lang="zh-tw">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DBMS Final Project</title>
-</head>
-<body>
-    <h1>收藏品管理系統</h1>
-    <p>
-        模板！</p>
-        <nav>
-        {% if user.is_authenticated %}
-            <p>你好，<strong>{{ user.username }}</strong>！</p>
-            <a href="{% url 'profile' %}">
-                <button type="button">個人資料</button>
-            </a>
-            <a href="{% url 'search_product' %}">
-                <button type="button">搜尋收藏品</button>
-            </a>
-            <a href="{% url 'logout' %}">
-                <button type="button">登出系統</button>
-            </a>
-            <h3>您的收藏清單</h3>
-            
-            {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                <li{% if message.tags %} class="{{ message.tags }}"{% endif %} style="color: green; font-weight: bold;">{{ message }}</li>
-                {% endfor %}
-            </ul>
-            {% endif %}
-            
-            <form method="POST" action="{% url 'update_prices' %}" style="margin-bottom: 15px;">
-                {% csrf_token %}
-                <button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">一鍵更新最新行情</button>
-            </form>
+{% extends 'tracker/base.html' %}
 
-    <table border="1">
+{% block page_title %}Inventory{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+    <form method="POST" action="{% url 'update_prices' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-primary" style="display: flex; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.57 5.57"/></svg>
+            Update Prices
+        </button>
+    </form>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table class="table">
         <thead>
             <tr>
-                <th>圖片</th>
-                <th>名稱</th>
-                <th>數量</th>
-                <th>平均購入價格</th>
-                <th>目前市價 (官方 API)</th>
-                <th>目前市價 (eBay 均價)</th>
-                <th>最後購入日期</th>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th class="text-right">Quantity</th>
+                <th class="text-right">Buy Price</th>
+                <th class="text-right">PTCG API</th>
+                <th class="text-right">eBay Avg</th>
+                <th>Date</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
             {% for item in inventory %}
             <tr>
-                <td><img src="{{ item.image }}" width="300"></td>
-                <td>{{ item.name }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>${{ item.buy_price }}</td>
-                <td style="color: green;">
-                    {% if item.category == 'PTCG API' %}
-                        ${{ item.ptcg_price }}
+                <td style="width: 100px;">
+                    {% if item.image %}
+                        <img src="{{ item.image }}" style="width: 80px; height: auto;">
                     {% else %}
-                        -
+                        <div style="width: 80px; height: 110px; background: #eee; border-radius: 6px;"></div>
                     {% endif %}
                 </td>
-                <td style="color: blue;">
+                <td style="font-weight: 500;">{{ item.name }}</td>
+                <td><span class="badge">{{ item.category }}</span></td>
+                <td class="text-right mono-data">{{ item.quantity }}</td>
+                <td class="text-right mono-data">${{ item.buy_price }}</td>
+                <td class="text-right mono-data" style="color: var(--up-color); font-weight: 500;">
+                    {% if item.platform == 'PTCG API' %}
+                        ${{ item.ptcg_price }}
+                    {% else %}
+                        <span style="color: var(--text-muted);">-</span>
+                    {% endif %}
+                </td>
+                <td class="text-right mono-data" style="color: var(--sidebar-active); font-weight: 500;">
                     {% if item.ebay_price %}
                         ${{ item.ebay_price }}
                     {% else %}
-                        <span style="color: gray;">尚未更新</span>
+                        <span style="color: var(--text-muted); font-weight: normal; font-size: 13px;">Not Updated</span>
                     {% endif %}
                 </td>
-                <td>{{ item.buy_date }}</td>
+                <td class="mono-data" style="color: var(--text-muted); font-size: 13px;">{{ item.buy_date }}</td>
+                <td>
+                    <a href="{% url 'edit_inventory' item.product_id %}" style="color: var(--sidebar-active); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        Edit
+                    </a>
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7">目前清單是空的，快去 <a href="{% url 'search_product' %}">搜尋並新增</a> 吧！</td>
-                </tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    Your inventory is empty. <a href="{% url 'search_product' %}" style="color: var(--sidebar-active); text-decoration: none; font-weight: 500;">Search and add</a> some items!
+                </td>
+            </tr>
             {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-            <p>您尚未登入，請先登入以查看您的收藏。</p>
-            <a href="{% url 'login' %}">
-                <button type="button">前往登入</button>
-            </a>
-        {% endif %}
-    </nav>
-</body>
-</html>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
