@@ -372,6 +372,33 @@
         font-size: 12px;
         color: #64748b;
     }
+
+    /* ── Time Range Buttons ── */
+    .range-buttons {
+        display: flex;
+        gap: 4px;
+    }
+    .range-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 3px;
+        background: transparent;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .range-btn:hover {
+        border-color: #1e3a8a;
+        color: #1e3a8a;
+    }
+    .range-btn.active {
+        background: #1e3a8a;
+        border-color: #1e3a8a;
+        color: #ffffff;
+    }
 </style>
 {% endblock %}
 
@@ -481,7 +508,16 @@
             PORTFOLIO NET WORTH
             <span class="live-dot" style="margin-left: 8px;"></span>
         </div>
-        <div class="header-value">${{ metrics.current_value }} USD</div>
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div class="range-buttons">
+                <button class="range-btn" data-days="7"   onclick="setTimeRange(7)">7D</button>
+                <button class="range-btn" data-days="30"  onclick="setTimeRange(30)">30D</button>
+                <button class="range-btn" data-days="90"  onclick="setTimeRange(90)">90D</button>
+                <button class="range-btn" data-days="365" onclick="setTimeRange(365)">1Y</button>
+                <button class="range-btn" data-days="0"   onclick="setTimeRange(0)">ALL</button>
+            </div>
+            <div class="header-value">${{ metrics.current_value }} USD</div>
+        </div>
     </div>
     <div class="chart-legend-custom">
         <div class="legend-item">
@@ -589,9 +625,46 @@
     const ma30Data = {{ ma30| safe }};
     const categoryAllocation = {{ category_allocation| safe }};
 
-    // Debug: log data to check
-    console.log('categoryAllocation:', categoryAllocation);
-    console.log('individualData keys:', Object.keys(individualData));
+    // ── Chart instance references ──
+    let portfolioChart = null, drawdownChart = null, categoryTrendChart = null, dailyReturnsChart = null;
+    let currentRange = 30;
+
+    // ── Time range helpers ──
+    function getStartIndex(days) {
+        if (days === 0) return 0;
+        return Math.max(0, labels.length - days);
+    }
+
+    function setTimeRange(days) {
+        currentRange = days;
+        // 用 x 軸 min/max 控制可見範圍，資料本身保持完整，才能繼續 pan 回之前的時間
+        const minLabel = days === 0 ? labels[0] : (labels[labels.length - days] ?? labels[0]);
+        const maxLabel = labels[labels.length - 1];
+
+        [portfolioChart, drawdownChart, categoryTrendChart].forEach(chart => {
+            if (!chart) return;
+            chart.options.scales.x.min = minLabel;
+            chart.options.scales.x.max = maxLabel;
+            chart.update('none');
+        });
+
+        if (dailyReturnsChart) {
+            const drMin = days === 0 ? dailyReturnsLabels[0] : (dailyReturnsLabels[dailyReturnsLabels.length - days] ?? dailyReturnsLabels[0]);
+            dailyReturnsChart.options.scales.x.min = drMin;
+            dailyReturnsChart.options.scales.x.max = dailyReturnsLabels[dailyReturnsLabels.length - 1];
+            dailyReturnsChart.update('none');
+        }
+
+        if (individualChart) {
+            individualChart.options.scales.x.min = minLabel;
+            individualChart.options.scales.x.max = maxLabel;
+            individualChart.update('none');
+        }
+
+        document.querySelectorAll('.range-btn').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.days) === days);
+        });
+    }
 
     // ── Chart.js defaults for dark panels ──
     Chart.defaults.font.family = "'JetBrains Mono', 'Inter', monospace";
@@ -681,7 +754,7 @@
         portfolioGradient.addColorStop(0.5, 'rgba(30, 58, 138, 0.05)');
         portfolioGradient.addColorStop(1, 'rgba(30, 58, 138, 0)');
 
-        new Chart(ctxPortfolio, {
+        portfolioChart = new Chart(ctxPortfolio, {
             type: 'line',
             data: {
                 labels: labels,
@@ -754,7 +827,7 @@
         ddGradient.addColorStop(0, 'rgba(185, 28, 28, 0)');
         ddGradient.addColorStop(1, 'rgba(185, 28, 28, 0.3)');
 
-        new Chart(ctxDrawdown, {
+        drawdownChart = new Chart(ctxDrawdown, {
             type: 'line',
             data: {
                 labels: labels,
@@ -806,7 +879,7 @@
         const ctxReturns = document.getElementById('returnsChart').getContext('2d');
         const returnColors = dailyReturnsPct.map(v => v >= 0 ? '#15803d' : '#b91c1c');
 
-        new Chart(ctxReturns, {
+        dailyReturnsChart = new Chart(ctxReturns, {
             type: 'bar',
             data: {
                 labels: dailyReturnsLabels,
@@ -862,7 +935,7 @@
             fill: false
         }));
 
-        new Chart(ctxCategory, {
+        categoryTrendChart = new Chart(ctxCategory, {
             type: 'line',
             data: { labels: labels, datasets: categoryDatasets },
             options: {
@@ -996,14 +1069,20 @@
                 },
                 plugins: [crosshairPlugin]
             });
+            // 套用目前選取的時間範圍
+            const minLabel = currentRange === 0 ? labels[0] : (labels[labels.length - currentRange] ?? labels[0]);
+            individualChart.options.scales.x.min = minLabel;
+            individualChart.options.scales.x.max = labels[labels.length - 1];
+            individualChart.update('none');
             console.log('✓ Individual chart OK for:', asset.name);
         } catch (e) { console.error('Individual chart error:', e); }
     }
 
-    // Initialize individual chart
+    // Initialize with default 30D range
     if (Object.keys(individualData).length > 0) {
         updateIndividualChart();
     }
+    setTimeRange(30);
 
 </script>
 {% endif %}
