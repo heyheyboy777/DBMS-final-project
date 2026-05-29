@@ -698,11 +698,22 @@
         }
     };
 
+    // ── Y-axis bounds helper ──
+    // 傳入一或多個資料陣列，回傳含 5% padding 的 { min, max }
+    function yBounds(...arrays) {
+        const vals = [].concat(...arrays.map(a => (a || []).filter(v => v !== null && v !== undefined)));
+        if (!vals.length) return { min: undefined, max: undefined };
+        const lo = Math.min(...vals);
+        const hi = Math.max(...vals);
+        const pad = (hi - lo) * 0.05 || Math.abs(hi) * 0.05 || 1;
+        return { min: lo - pad, max: hi + pad };
+    }
+
     // ── Common tooltip config ──
     const zoomConfig = {
         pan: {
             enabled: true,
-            mode: 'x',
+            mode: 'xy',   // x 左右滑動時間，y 上下拖移視窗
         },
         zoom: {
             wheel: {
@@ -803,6 +814,7 @@
                 plugins: { legend: { display: false }, tooltip: lightTooltip, zoom: zoomConfig },
                 scales: {
                     y: {
+                        ...yBounds(overallData, ma7Data, ma30Data),
                         grid: { color: lightGridColor },
                         ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() }
                     },
@@ -857,6 +869,7 @@
                 },
                 scales: {
                     y: {
+                        ...yBounds(drawdownData),
                         grid: { color: lightGridColor },
                         ticks: { color: lightTickColor, font: darkTickFont, callback: v => v + '%' }
                     },
@@ -950,7 +963,7 @@
                     zoom: zoomConfig
                 },
                 scales: {
-                    y: { grid: { color: lightGridColor }, ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() } },
+                    y: { ...yBounds(...Object.values(categoryData)), grid: { color: lightGridColor }, ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() } },
                     x: { grid: { display: false }, ticks: { color: lightTickColor, font: darkTickFont, maxTicksLimit: 12, maxRotation: 0 } }
                 },
                 interaction: { mode: 'nearest', axis: 'x', intersect: false }
@@ -1062,7 +1075,7 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: lightTooltip, zoom: zoomConfig },
                     scales: {
-                        y: { grid: { color: lightGridColor }, ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() } },
+                        y: { ...yBounds(asset.data), grid: { color: lightGridColor }, ticks: { color: lightTickColor, font: darkTickFont, callback: v => '$' + v.toLocaleString() } },
                         x: { grid: { display: false }, ticks: { color: lightTickColor, font: darkTickFont, maxTicksLimit: 12, maxRotation: 0 } }
                     },
                     interaction: { mode: 'nearest', axis: 'x', intersect: false }
