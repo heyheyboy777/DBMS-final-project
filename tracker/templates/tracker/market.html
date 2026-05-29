@@ -436,13 +436,16 @@
     <div class="news-card">
         <div class="card-header">
             <h3>PTCG NEWS</h3>
-            <button class="refresh-btn" id="refreshNewsBtn" onclick="refreshNews()">
-                <svg class="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="23 4 23 10 17 10"></polyline>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                </svg>
-                Refresh
-            </button>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="newsUpdateStatus" style="font-size: 11px; color: var(--text-muted);"></span>
+                <button class="refresh-btn" id="refreshNewsBtn" onclick="refreshNews()">
+                    <svg class="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
         </div>
         <div class="news-list" id="newsList">
             {% for news in news_list %}
@@ -589,23 +592,28 @@
         })
         .then(res => res.json())
         .then(data => {
-            btn.classList.remove('loading');
-            btn.disabled = false;
+            setTimeout(() => {
+                btn.classList.remove('loading');
+                btn.disabled = false;
 
-            if (data.news && data.news.length > 0) {
-                list.innerHTML = data.news.map(n => `
-                    <div class="news-item">
-                        <a href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
-                        <div class="news-meta">
-                            <span class="news-source">${n.source}</span>
-                            <span>·</span>
-                            <span>${n.published}</span>
+                if (data.news && data.news.length > 0) {
+                    list.innerHTML = data.news.map(n => `
+                        <div class="news-item">
+                            <a href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
+                            <div class="news-meta">
+                                <span class="news-source">${n.source}</span>
+                                <span>·</span>
+                                <span>${n.published}</span>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
-            } else {
-                list.innerHTML = '<div class="news-empty">No news found. Try again later.</div>';
-            }
+                    `).join('');
+                    
+                    const now = new Date();
+                    document.getElementById('newsUpdateStatus').textContent = `Updated ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+                } else {
+                    list.innerHTML = '<div class="news-empty">No news found. Try again later.</div>';
+                }
+            }, 600); // Enforce minimum visual loading time
         })
         .catch(err => {
             console.error('News refresh error:', err);
