@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from django.shortcuts import render, redirect
 from django.db import connection
 from .services import search_ebay_items, search_ptcg_cards, get_ptcg_card_price, get_ebay_average_price, fetch_ptcg_news
@@ -132,21 +133,22 @@ def inventory_view(request):
 
     with connection.cursor() as cursor:
         sql = """
-            SELECT p.id, p.name, p.imgurl, 
-                   AVG(ui.purchase_price) AS avg_purchase_price, 
+            SELECT p.id, p.name, p.imgurl,
+                   AVG(ui.purchase_price) AS avg_purchase_price,
                    MAX(ui.purchase_date) AS latest_purchase_date,
-                   
-                   (SELECT market_price FROM price_histories 
-                    WHERE product_id = p.id AND platform = 'PTCG API' 
+
+                   (SELECT market_price FROM price_histories
+                    WHERE product_id = p.id AND platform = 'PTCG API'
                     ORDER BY recorded_at DESC LIMIT 1) AS ptcg_price,
-                    
-                   (SELECT market_price FROM price_histories 
-                    WHERE product_id = p.id AND platform = 'eBay' 
+
+                   (SELECT market_price FROM price_histories
+                    WHERE product_id = p.id AND platform = 'eBay'
                     ORDER BY recorded_at DESC LIMIT 1) AS ebay_price,
-                    
+
                    SUM(ui.quantity) AS total_quantity,
                    p.category,
-                   p.platform
+                   p.platform,
+                   MAX(ui.content) AS content
             FROM user_inventories ui
             JOIN products p ON ui.product_id = p.id
             WHERE ui.user_id = %s
@@ -166,6 +168,7 @@ def inventory_view(request):
             quantity = row[7]
             category = row[8]
             platform = row[9]
+            content = row[10] or ''
 
             if platform == 'eBay' and ebay_price is None:
                 ebay_price = avg_purchase
@@ -183,7 +186,8 @@ def inventory_view(request):
                 'ebay_price': round(ebay_price, 2) if ebay_price else None,
                 'quantity': quantity,
                 'category': category,
-                'platform': platform
+                'platform': platform,
+                'content': content,
             })
 
     return render(request, 'tracker/index.html', {'inventory': inventory_list})
@@ -195,16 +199,16 @@ def search_product(request):
     search_ptcg = request.GET.get('search_ptcg') # 獲取 PTCG 搜尋開關狀態
     results = []
     if query:
-        # 預設必定呼叫 eBay API
-        ebay_results = search_ebay_items(query)
-        
         if search_ptcg:
-            # 如果開啟 ptcg 開關，才呼叫 PTCG API
-            ptcg_results = search_ptcg_cards(query)
-            # 將兩個平台的結果合併在一起顯示，PTCG 卡牌行情優先顯示在前面
+            # eBay 和 PTCG 並行呼叫，總時間 = max(兩者) 而非兩者相加
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                ebay_future = executor.submit(search_ebay_items, query)
+                ptcg_future = executor.submit(search_ptcg_cards, query)
+                ebay_results = ebay_future.result()
+                ptcg_results = ptcg_future.result()
             results = ptcg_results + ebay_results
         else:
-            results = ebay_results
+            results = search_ebay_items(query)
             
     return render(request, 'tracker/search.html', {'results': results, 'query': query, 'search_ptcg': search_ptcg})
 
@@ -239,6 +243,7 @@ def add_to_inventory(request):
         category = request.POST.get('category', 'Other')
         purchase_price = request.POST.get('purchase_price')
         quantity = request.POST.get('quantity', 1)
+        content = request.POST.get('content', '')
         user_id = request.user.id
 
         with connection.cursor() as cursor:
@@ -265,9 +270,9 @@ def add_to_inventory(request):
 
             # 3. 存入 UserCollection (建立使用者的收藏紀錄)
             cursor.execute("""
-                INSERT INTO user_inventories (user_id, product_id, purchase_price, purchase_date, quantity)
-                VALUES (%s, %s, %s, %s, %s)
-            """, [user_id, product_id, purchase_price, date.today(), quantity])
+                INSERT INTO user_inventories (user_id, product_id, purchase_price, purchase_date, quantity, content)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, [user_id, product_id, purchase_price, date.today(), quantity, content])
 
         return redirect('index')
 
@@ -339,7 +344,8 @@ def edit_inventory(request, product_id):
             sql = """
                 SELECT p.name, p.imgurl, p.platform, p.category,
                        SUM(ui.quantity) AS total_quantity,
-                       AVG(ui.purchase_price) AS avg_purchase_price
+                       AVG(ui.purchase_price) AS avg_purchase_price,
+                       MAX(ui.content) AS content
                 FROM user_inventories ui
                 JOIN products p ON ui.product_id = p.id
                 WHERE ui.user_id = %s AND p.id = %s
@@ -347,11 +353,11 @@ def edit_inventory(request, product_id):
             """
             cursor.execute(sql, [request.user.id, product_id])
             row = cursor.fetchone()
-            
+
             if not row:
                 messages.error(request, '找不到該商品')
                 return redirect('index')
-                
+
             context = {
                 'product_id': product_id,
                 'name': row[0],
@@ -359,7 +365,8 @@ def edit_inventory(request, product_id):
                 'platform': row[2],
                 'category': row[3],
                 'quantity': row[4],
-                'purchase_price': round(row[5], 2) if row[5] else 0
+                'purchase_price': round(row[5], 2) if row[5] else 0,
+                'content': row[6] or '',
             }
         return render(request, 'tracker/edit_inventory.html', context)
         
@@ -374,15 +381,14 @@ def edit_inventory(request, product_id):
             else:
                 quantity = request.POST.get('quantity')
                 purchase_price = request.POST.get('purchase_price')
-                
-                # 因為原本設計可能有重複多筆，這裡做 Consolidated Update
-                # 先刪除全部舊紀錄，再寫入一筆統整後的新紀錄
+                content = request.POST.get('content', '')
+
                 cursor.execute("DELETE FROM user_inventories WHERE user_id = %s AND product_id = %s", [user_id, product_id])
-                
+
                 cursor.execute("""
-                    INSERT INTO user_inventories (user_id, product_id, purchase_price, purchase_date, quantity)
-                    VALUES (%s, %s, %s, date('now'), %s)
-                """, [user_id, product_id, purchase_price, quantity])
+                    INSERT INTO user_inventories (user_id, product_id, purchase_price, purchase_date, quantity, content)
+                    VALUES (%s, %s, %s, date('now'), %s, %s)
+                """, [user_id, product_id, purchase_price, quantity, content])
                 
                 messages.success(request, '收藏品已更新')
                 
